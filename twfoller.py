@@ -1,3 +1,8 @@
+"""
+Thanks to 
+http://thomassileo.com/blog/2013/01/25/using-twitter-rest-api-v1-dot-1-with-python/
+"""
+
 # -*- encoding: utf-8 -*-
 from __future__ import unicode_literals
 import requests
@@ -8,11 +13,11 @@ REQUEST_TOKEN_URL = "https://api.twitter.com/oauth/request_token"
 AUTHORIZE_URL = "https://api.twitter.com/oauth/authorize?oauth_token="
 ACCESS_TOKEN_URL = "https://api.twitter.com/oauth/access_token"
 
-CONSUMER_KEY = "5JuvuLiIIxC997IRNlADw"
-CONSUMER_SECRET = "tmR64sE5qObPe3cNxhzpb3zZMoLKivAqsVlfpJtlM0"
+CONSUMER_KEY = "YOUR_CONSUMER_KEY"    #please register your own key on https://dev.twitter.com/ and create a new application
+CONSUMER_SECRET = "YOUR CONSUMER_SECRET"
 
-OAUTH_TOKEN = "596360126-d0i2HewbLRpl7VRMOjPIJBfLmaAL7eVFGSBaCtY8"
-OAUTH_TOKEN_SECRET = "fzX8fsyHQ3x02uxj6WwPMN3cu1gA42B5gJbpEmDcAYr6n"
+OAUTH_TOKEN = ""
+OAUTH_TOKEN_SECRET = ""
 
 
 def setup_oauth():
@@ -52,7 +57,7 @@ def get_oauth():
                 resource_owner_secret=OAUTH_TOKEN_SECRET)
     return oauth
 
-if __name__ == "__main__":
+def gettwfoller():
     if not OAUTH_TOKEN:
         token, secret = setup_oauth()
         print "OAUTH_TOKEN: " + token
@@ -60,5 +65,8 @@ if __name__ == "__main__":
         print
     else:
         oauth = get_oauth()
-        r = requests.get(url="https://api.twitter.com/1.1/followers/list.json?cursor=-1&screen_name=wushaozheng&skip_status=true&include_user_entities=false", auth=oauth)
-        print r.json()
+        r = requests.get(url="https://api.twitter.com/1.1/followers/list.json?cursor=-1&screen_name=wushaozheng&skip_status=true&include_user_entities=false", auth=oauth) #replace your own twitter id
+        return  '@' + '@'.join([fowller['screen_name'] for fowller in r.json()['users']])
+        
+if __name__ == "__main__":
+    pass
