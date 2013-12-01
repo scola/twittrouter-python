@@ -15,7 +15,7 @@ ACCESS_TOKEN_URL = "https://api.twitter.com/oauth/access_token"
 #OAUTH_TOKEN_SECRET = ""
 
 
-def setup_oauth():
+def setup_oauth(CONSUMER_KEY,CONSUMER_SECRET):
     """Authorize your app via identifier."""
     # Request token
     oauth = OAuth1(CONSUMER_KEY, client_secret=CONSUMER_SECRET)

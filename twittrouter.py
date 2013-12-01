@@ -34,7 +34,7 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
         else:
             self._writeheaders()
             with open("BASEHTML.html",'r') as f:
-                self.wfile.write(f.read().replace('twitterid',TwitterID))
+                self.wfile.write(unicode(f.read(),'utf-8').replace('twitterid',TwitterID))
 
     def do_POST(self):
         form = cgi.FieldStorage(
@@ -47,22 +47,21 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
         if not re.match(r'^\w+$', form['uname'].value.strip()):
             logging.info("you input invalid username %s" %form['uname'].value)
             with open("VERIFY_FAILED.html",'r') as f:
-                self.wfile.write(f.read().replace('twitterid',TwitterID))
+                self.wfile.write(unicode(f.read(),'utf-8').replace('twitterid',TwitterID))
                 return
 
         if re.search(str(form['uname'].value.strip()), gettwfoller(),re.IGNORECASE):
             logging.info("auth success %s" %form['uname'].value)
             with open("VERIFY_OK.html",'r') as f:
-                self.wfile.write(f.read().replace('twitterid',TwitterID))
+                self.wfile.write(unicode(f.read(),'utf-8').replace('twitterid',TwitterID))
 
             if self.client_address[0] in blocklist:
                 logging.info("unblock the ip,feel free to use the wifi")
                 os.system('iptables -t nat -D PREROUTING -s %s -p tcp --dport 80 -j DNAT  --to-destination 192.168.1.1:8888' %self.client_address[0])
                 blocklist.remove(self.client_address[0])
-                authlist.append(self.client_address[0])
         else:
             with open("VERIFY_FAILED.html",'r') as f:
-                self.wfile.write(f.read().replace('twitterid',TwitterID))
+                self.wfile.write(unicode(f.read(),'utf-8').replace('twitterid',TwitterID))
 
 class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
     pass
@@ -81,7 +80,7 @@ def getarplist():
         ip_mac_list = map(ip_mac,client)
         logging.info('scan the arp list')
         for ipmac in ip_mac_list:
-            if len(ipmac)==2 and (ipmac[1] in whitelist or ipmac[0] in authlist or ipmac[0] in blocklist):
+            if len(ipmac)==2 and (ipmac[1] in whitelist or ipmac[0] in blocklist):
                 continue
             elif len(ipmac)==2:
                 logging.info("the new client should be blocked.ip == %s,mac == %s" %(ipmac[0],ipmac[1]))
@@ -105,13 +104,13 @@ if __name__ == "__main__":
     CONSUMER_SECRET = config['CONSUMER_SECRET']
     OAUTH_TOKEN = config['OAUTH_TOKEN']
     OAUTH_TOKEN_SECRET = config['OAUTH_TOKEN_SECRET']
-    if len(sys.argv > 1):
+    if len(sys.argv) > 1:
         TwitterID = sys.argv[1]
     if not (TwitterID and CONSUMER_KEY and CONSUMER_SECRET):
         logging.critical("please add TwitterID,CONSUMER_KEY and CONSUMER_SECRET into config.json file") 
         sys.exit(-1)
     if not (OAUTH_TOKEN and OAUTH_TOKEN_SECRET):
-        OAUTH_TOKEN,OAUTH_TOKEN_SECRET = setup_oauth()
+        OAUTH_TOKEN,OAUTH_TOKEN_SECRET = setup_oauth(CONSUMER_KEY,CONSUMER_SECRET)
         config['OAUTH_TOKEN'] = OAUTH_TOKEN 
         config['OAUTH_TOKEN_SECRET'] = OAUTH_TOKEN_SECRET
         with open('config.json', 'wb') as f:
