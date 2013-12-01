@@ -2,20 +2,22 @@
 #coding=utf-8
 
 from __future__ import with_statement
+import sys
+if sys.version_info < (2, 6):
+    import simplejson as json
+else:
+    import json
+
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 from SocketServer import ThreadingMixIn
-from twfoller import gettwfoller
+from twfoller import gettwfoller,setup_oauth
 import cgi
 import threading
 import os
 import time
 import re
 import logging
-
-whitelist = ['00:00:00:00:00:00','d8:57:ef:33:86:93','00:04:23:97:20:26','04:46:65:53:00:0b']
-authlist = []
-blocklist = []
 
 class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
     def _writeheaders(self):
@@ -32,7 +34,7 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
         else:
             self._writeheaders()
             with open("BASEHTML.html",'r') as f:
-                self.wfile.write(f.read())
+                self.wfile.write(f.read().replace('twitterid',TwitterID))
 
     def do_POST(self):
         form = cgi.FieldStorage(
@@ -45,13 +47,13 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
         if not re.match(r'^\w+$', form['uname'].value.strip()):
             logging.info("you input invalid username %s" %form['uname'].value)
             with open("VERIFY_FAILED.html",'r') as f:
-                self.wfile.write(f.read())
+                self.wfile.write(f.read().replace('twitterid',TwitterID))
                 return
 
         if re.search(str(form['uname'].value.strip()), gettwfoller(),re.IGNORECASE):
             logging.info("auth success %s" %form['uname'].value)
             with open("VERIFY_OK.html",'r') as f:
-                self.wfile.write(f.read())
+                self.wfile.write(f.read().replace('twitterid',TwitterID))
 
             if self.client_address[0] in blocklist:
                 logging.info("unblock the ip,feel free to use the wifi")
@@ -60,7 +62,7 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
                 authlist.append(self.client_address[0])
         else:
             with open("VERIFY_FAILED.html",'r') as f:
-                self.wfile.write(f.read())
+                self.wfile.write(f.read().replace('twitterid',TwitterID))
 
 class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
     pass
@@ -93,6 +95,28 @@ if __name__ == "__main__":
         datefmt='%Y-%m-%d %H:%M:%S', filemode='a+')
 
     os.chdir(os.path.dirname(__file__) or '.')
+
+    with open('config.json', 'rb') as f:
+        config = json.load(f)
+    whitelist = config['whitelist'].split('|')
+    blocklist = []
+    TwitterID = config['TwitterID']
+    CONSUMER_KEY = config['CONSUMER_KEY']
+    CONSUMER_SECRET = config['CONSUMER_SECRET']
+    OAUTH_TOKEN = config['OAUTH_TOKEN']
+    OAUTH_TOKEN_SECRET = config['OAUTH_TOKEN_SECRET']
+    if len(sys.argv > 1):
+        TwitterID = sys.argv[1]
+    if not (TwitterID and CONSUMER_KEY and CONSUMER_SECRET):
+        logging.critical("please add TwitterID,CONSUMER_KEY and CONSUMER_SECRET into config.json file") 
+        sys.exit(-1)
+    if not (OAUTH_TOKEN and OAUTH_TOKEN_SECRET):
+        OAUTH_TOKEN,OAUTH_TOKEN_SECRET = setup_oauth()
+        config['OAUTH_TOKEN'] = OAUTH_TOKEN 
+        config['OAUTH_TOKEN_SECRET'] = OAUTH_TOKEN_SECRET
+        with open('config.json', 'wb') as f:
+            json.dump(config,f)
+
     t = createThread(target = getarplist,args=tuple())
     serveraddr = ('', 8888)
     srvr = ThreadingHTTPServer(serveraddr, RequestHandler)

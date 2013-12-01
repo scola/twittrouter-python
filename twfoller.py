@@ -1,8 +1,3 @@
-"""
-Thanks to 
-http://thomassileo.com/blog/2013/01/25/using-twitter-rest-api-v1-dot-1-with-python/
-"""
-
 # -*- encoding: utf-8 -*-
 from __future__ import unicode_literals
 import requests
@@ -13,11 +8,11 @@ REQUEST_TOKEN_URL = "https://api.twitter.com/oauth/request_token"
 AUTHORIZE_URL = "https://api.twitter.com/oauth/authorize?oauth_token="
 ACCESS_TOKEN_URL = "https://api.twitter.com/oauth/access_token"
 
-CONSUMER_KEY = "YOUR_CONSUMER_KEY"    #please register your own key on https://dev.twitter.com/ and create a new application
-CONSUMER_SECRET = "YOUR CONSUMER_SECRET"
+#CONSUMER_KEY = ""
+#CONSUMER_SECRET = ""
 
-OAUTH_TOKEN = ""
-OAUTH_TOKEN_SECRET = ""
+#OAUTH_TOKEN = ""
+#OAUTH_TOKEN_SECRET = ""
 
 
 def setup_oauth():
@@ -57,16 +52,10 @@ def get_oauth():
                 resource_owner_secret=OAUTH_TOKEN_SECRET)
     return oauth
 
-def gettwfoller():
-    if not OAUTH_TOKEN:
-        token, secret = setup_oauth()
-        print "OAUTH_TOKEN: " + token
-        print "OAUTH_TOKEN_SECRET: " + secret
-        print
-    else:
-        oauth = get_oauth()
-        r = requests.get(url="https://api.twitter.com/1.1/followers/list.json?cursor=-1&screen_name=wushaozheng&skip_status=true&include_user_entities=false", auth=oauth) #replace your own twitter id
-        return  '@' + '@'.join([fowller['screen_name'] for fowller in r.json()['users']])
+def gettwfoller(TwitterID,CONSUMER_KEY,CONSUMER_SECRET,OAUTH_TOKEN,OAUTH_TOKEN_SECRET):
+    oauth = get_oauth()
+    r = requests.get(url="https://api.twitter.com/1.1/followers/list.json?cursor=-1&screen_name=%s&skip_status=true&include_user_entities=false" %TwitterID, auth=oauth)
+    return  '@' + '@'.join([fowller['screen_name'] for fowller in r.json()['users']])
         
 if __name__ == "__main__":
     pass
