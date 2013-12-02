@@ -52,10 +52,9 @@ def get_oauth():
                 resource_owner_secret=OAUTH_TOKEN_SECRET)
     return oauth
 
-def gettwfoller(TwitterID,CONSUMER_KEY,CONSUMER_SECRET,OAUTH_TOKEN,OAUTH_TOKEN_SECRET):
-    oauth = get_oauth()
-    r = requests.get(url="https://api.twitter.com/1.1/followers/list.json?cursor=-1&screen_name=%s&skip_status=true&include_user_entities=false" %TwitterID, auth=oauth)
-    return  '@' + '@'.join([fowller['screen_name'] for fowller in r.json()['users']])
-        
+def check_friendship(master,friend,auth=oauth):
+    r = requests.get(url="https://api.twitter.com/1.1/friendships/lookup.json?screen_name=%s,%s" %(master,friend), auth=oauth).json()
+    return len(r) == 2 and (r[1]['connections'] != ['none']or r[0]['connections'] != ['none'])  
+
 if __name__ == "__main__":
     pass
