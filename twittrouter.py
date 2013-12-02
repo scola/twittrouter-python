@@ -50,8 +50,7 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
                 self.wfile.write(f.read().decode('utf-8').replace('twitterid',TwitterID).encode('utf-8'))
                 return
 
-        if re.search(str(form['uname'].value.strip()), gettwfoller(),re.IGNORECASE):
-        if check_friendship(TwitterID,str(form['uname'].value.strip(),auth=oauth):    
+        if check_friendship(TwitterID,form['uname'].value.strip(),auth=oauth):
             logging.info("auth success %s" %form['uname'].value)
             with open("VERIFY_OK.html",'r') as f:
                 self.wfile.write(f.read().decode('utf-8').replace('twitterid',TwitterID).encode('utf-8'))
