@@ -34,7 +34,7 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
         else:
             self._writeheaders()
             with open("BASEHTML.html",'r') as f:
-                self.wfile.write(unicode(f.read(),'utf-8').replace('twitterid',TwitterID))
+                self.wfile.write(f.read().decode('utf-8').replace('twitterid',TwitterID).encode('utf-8'))
 
     def do_POST(self):
         form = cgi.FieldStorage(
@@ -47,13 +47,13 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
         if not re.match(r'^\w+$', form['uname'].value.strip()):
             logging.info("you input invalid username %s" %form['uname'].value)
             with open("VERIFY_FAILED.html",'r') as f:
-                self.wfile.write(unicode(f.read(),'utf-8').replace('twitterid',TwitterID))
+                self.wfile.write(f.read().decode('utf-8').replace('twitterid',TwitterID).encode('utf-8'))
                 return
 
         if re.search(str(form['uname'].value.strip()), gettwfoller(),re.IGNORECASE):
             logging.info("auth success %s" %form['uname'].value)
             with open("VERIFY_OK.html",'r') as f:
-                self.wfile.write(unicode(f.read(),'utf-8').replace('twitterid',TwitterID))
+                self.wfile.write(f.read().decode('utf-8').replace('twitterid',TwitterID).encode('utf-8'))
 
             if self.client_address[0] in blocklist:
                 logging.info("unblock the ip,feel free to use the wifi")
@@ -61,7 +61,8 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
                 blocklist.remove(self.client_address[0])
         else:
             with open("VERIFY_FAILED.html",'r') as f:
-                self.wfile.write(unicode(f.read(),'utf-8').replace('twitterid',TwitterID))
+                #self.wfile.write(f.read().decode('utf-8').replace('twitterid',TwitterID))
+                self.wfile.write(f.read().decode('utf-8').replace('twitterid',TwitterID).encode('utf-8'))
 
 class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
     pass
