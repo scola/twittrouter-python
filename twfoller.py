@@ -54,7 +54,7 @@ def get_oauth(CONSUMER_KEY,CONSUMER_SECRET,OAUTH_TOKEN,OAUTH_TOKEN_SECRET):
 
 def check_friendship(master,friend,auth):
     r = requests.get(url="https://api.twitter.com/1.1/friendships/lookup.json?screen_name=%s,%s" %(master,friend), auth=auth).json()
-    return len(r) == 2 and (r[1]['connections'] != ['none']or r[0]['connections'] != ['none'])  
+    return len(r) == 2 and (r[1]['connections'] != ['none'] or r[0]['connections'] != ['none'])  
 
 if __name__ == "__main__":
     pass

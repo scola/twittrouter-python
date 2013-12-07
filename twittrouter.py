@@ -45,7 +45,7 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
             })
         self._writeheaders()
         if not re.match(r'^\w+$', form['uname'].value.strip()):
-            logging.info("you input invalid username %s" %form['uname'].value)
+            logging.warning("you input invalid username %s" %form['uname'].value)
             with open("VERIFY_FAILED.html",'r') as f:
                 self.wfile.write(f.read().decode('utf-8').replace('twitterid',TwitterID).encode('utf-8'))
                 return
@@ -120,6 +120,7 @@ if __name__ == "__main__":
         with open('config.json', 'wb') as f:
             json.dump(config,f)
 
+    print "Hi,@%s,thanks for sharing your wifi to your twitter friends" %TwitterID
     oauth = get_oauth(CONSUMER_KEY,CONSUMER_SECRET,OAUTH_TOKEN,OAUTH_TOKEN_SECRET)
     t = createThread(target = getarplist,args=tuple())
     serveraddr = ('', 8888)
