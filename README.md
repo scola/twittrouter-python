@@ -17,14 +17,18 @@ and pip is required for install requests and requests_oauthlib
     pip install requests
     pip install requests_oauthlib
 
-Because the twitter access token belong to @twitrouter,so must follow [@twitrouter](https://twitter.com/twitrouter) first.Otherwise, you can create your own [twitter app](https://dev.twitter.com/apps) and add the Consumer key,secret Access token,secret in the config.json
+you must create your own [twitter app](https://dev.twitter.com/apps) and add the Consumer key,secret Access token,secret in the config.json
 
 Your own devices need not to be verified,so just add it into whitelist.00:00:00:00:00:00 is invalid mac address,so keep it in whitelist.You could append your device mac address that's split by '|'.You can add your own twitter id in config.json optionally
 
 Edit config.json
 
     "TwitterID":"your-twitter-id",
-    "whitelist":"00:00:00:00:00:00|d8:57:ef:33:86:93"
+    "CONSUMER_KEY":"",
+    "CONSUMER_SECRET":"",
+    "OAUTH_TOKEN":"",
+    "OAUTH_TOKEN_SECRET":"",
+    "whitelist":"00:00:00:00:00:00|d8:57:ef:33:86:93|00:04:23:97:20:26|04:46:65:53:00:0b"
 
 Run this program
 
