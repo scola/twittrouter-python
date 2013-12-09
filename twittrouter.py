@@ -40,6 +40,7 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
         form = cgi.FieldStorage(
             fp=self.rfile,
             headers=self.headers,
+            keep_blank_values=True,
             environ={'REQUEST_METHOD':'POST',
             'CONTENT_TYPE':self.headers['Content-Type'],
             })
@@ -57,7 +58,7 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
 
             if self.client_address[0] in blocklist:
                 logging.info("unblock the ip,feel free to use the wifi")
-                os.system('iptables -t nat -D PREROUTING -s %s -p tcp --dport 80 -j DNAT  --to-destination 192.168.1.1:8888' %self.client_address[0])
+                os.system('iptables -t nat -D PREROUTING -s %s -p tcp --dport 80 -j REDIRECT --to-ports 8888' %self.client_address[0])
                 blocklist.remove(self.client_address[0])
                 authlist.append(self.client_address[0])
         else:
@@ -87,7 +88,7 @@ def getarplist():
             elif len(ipmac)==2:
                 logging.info("the new client should be blocked.ip == %s,mac == %s" %(ipmac[0],ipmac[1]))
                 blocklist.append(ipmac[0])
-                os.system('iptables -t nat -I PREROUTING -s %s -p tcp --dport 80 -j DNAT  --to-destination 192.168.1.1:8888' %ipmac[0])
+                os.system('iptables -t nat -I PREROUTING -s %s -p tcp --dport 80 -j REDIRECT --to-ports 8888' %ipmac[0])
 
         time.sleep(10)
 
