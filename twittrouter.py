@@ -45,7 +45,7 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
             'CONTENT_TYPE':self.headers['Content-Type'],
             })
         self._writeheaders()
-        if not re.match(r'^\w+$', form['uname'].value.strip()):
+        if not re.match(r'^\w+$', form['uname'].value.strip().replace('_','')):
             logging.warning("you input invalid username %s" %form['uname'].value)
             with open("VERIFY_FAILED.html",'r') as f:
                 self.wfile.write(f.read().decode('utf-8').replace('twitterid',TwitterID).encode('utf-8'))
@@ -78,7 +78,7 @@ def createThread(target,args):
 def getarplist():
     time.sleep(5)	
     while True:
-        client = os.popen('arp -n').read().strip().split('\n')[1:]
+        client = os.popen('arp -n').read().strip().split('\n')
         ip_mac = lambda s: re.findall(r'\d+\.\d+\.\d+\.\d+|\w+:\w+:\w+:\w+:\w+:\w+',s)
         ip_mac_list = map(ip_mac,client)
         logging.info('scan the arp list')
