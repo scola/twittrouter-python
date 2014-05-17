@@ -29,7 +29,10 @@ def setup_oauth(CONSUMER_KEY,CONSUMER_SECRET):
     authorize_url = AUTHORIZE_URL + resource_owner_key
     print 'Please go here and authorize: ' + authorize_url
     
-    verifier = raw_input('Please input the verifier: ')
+    #verifier = raw_input('Please input the verifier: ')
+    yield authorize_url
+    global verifier_queue
+    verifier_queue.get()
     oauth = OAuth1(CONSUMER_KEY,
                    client_secret=CONSUMER_SECRET,
                    resource_owner_key=resource_owner_key,
@@ -42,7 +45,7 @@ def setup_oauth(CONSUMER_KEY,CONSUMER_SECRET):
     token = credentials.get('oauth_token')[0]
     secret = credentials.get('oauth_token_secret')[0]
 
-    return token, secret
+    yield token, secret
 
 
 def get_oauth(CONSUMER_KEY,CONSUMER_SECRET,OAUTH_TOKEN,OAUTH_TOKEN_SECRET):

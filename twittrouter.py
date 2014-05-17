@@ -18,8 +18,10 @@ import os
 import time
 import re
 import logging
+import Queue
 
 class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
+    gen = None
     def send_to_client(self,filename):
         with open(filename,'r') as f:
             self.wfile.write(f.read().decode('utf-8').replace('twitterid',TwitterID).encode('utf-8'))
@@ -27,6 +29,10 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
     def _writeheaders(self):
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
+        self.end_headers()
+    def _write_redirect_headers(self,redirect_url):
+        self.send_response(301)
+        self.send_header('Location', redirect_url)
         self.end_headers()
 
     def do_HEAD(self):
@@ -54,15 +60,28 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
             environ={'REQUEST_METHOD':'POST',
             'CONTENT_TYPE':self.headers['Content-Type'],
             })
-        self._writeheaders()
-        if self.client_address[0] == "127.0.0.1" and form['twitter_auth'] and not re.match(r'^\w+$', form['twitter_auth'].value.strip().replace('_','')):
+        if self.client_address[0] == "127.0.0.1" and 'twitter_auth' in form.keys() and re.match(r'^\w+$', form['twitter_auth'].value.strip().replace('_','')):
+            logging.info("auth input %s" %form['twitter_auth'].value)
             twitter_auth = form['twitter_auth'].value.strip()
+            global TwitterID
+            TwitterID = twitter_auth
             if twitter_auth in config.keys():
-                global TwitterID
-                TwitterID = twitter_auth
+                self._writeheaders()
                 self.send_to_client("config_done.html")
+                #form['twitter_auth'] = None
+                return
+            else:
+                #global config
+                RequestHandler.gen = setup_oauth(CONSUMER_KEY,CONSUMER_SECRET)
+                self._write_redirect_headers(RequestHandler.gen.next())
+                return
+                #config[TwitterID]['OAUTH_TOKEN'] = OAUTH_TOKEN
+                #config[TwitterID]['OAUTH_TOKEN_SECRET'] = OAUTH_TOKEN_SECRET
+                #with open('config.json', 'wb') as f:
+                #    json.dump(config,f)
 
-        if not re.match(r'^\w+$', form['uname'].value.strip().replace('_','')):
+        self._writeheaders()
+        if 'uname' in form.keys() and not re.match(r'^\w+$', form['uname'].value.strip().replace('_','')):
             logging.warning("you input invalid username %s" %form['uname'].value)
             with open("VERIFY_FAILED.html",'r') as f:
                 self.wfile.write(f.read().decode('utf-8').replace('twitterid',TwitterID).encode('utf-8'))
@@ -131,17 +150,18 @@ if __name__ == "__main__":
 
     blocklist = []
     authlist = []
-
+    verifier_queue = Queue.Queue(1)
     if not (TwitterID and CONSUMER_KEY and CONSUMER_SECRET):
         logging.critical("please add TwitterID,CONSUMER_KEY and CONSUMER_SECRET into config.json file")
         sys.exit(-1)
+    """    
     if not (OAUTH_TOKEN and OAUTH_TOKEN_SECRET):
         OAUTH_TOKEN,OAUTH_TOKEN_SECRET = setup_oauth(CONSUMER_KEY,CONSUMER_SECRET)
         config['OAUTH_TOKEN'] = OAUTH_TOKEN
         config['OAUTH_TOKEN_SECRET'] = OAUTH_TOKEN_SECRET
         with open('config.json', 'wb') as f:
             json.dump(config,f)
-
+    """
     print "Hi,@%s,thanks for sharing your wifi to your twitter friends" %TwitterID
     oauth = get_oauth(CONSUMER_KEY,CONSUMER_SECRET,OAUTH_TOKEN,OAUTH_TOKEN_SECRET)
     t = createThread(target = getarplist,args=tuple())
