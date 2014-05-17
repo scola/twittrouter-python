@@ -41,6 +41,18 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
     def do_GET(self):
         if '.ico' in self.path or '.png' in self.path:
             SimpleHTTPRequestHandler.do_GET(self)
+        elif "&oauth_verifier=" in self.path:
+            logging.info("get oauth_verifier=%s" %self.path.split('=')[-1])
+            verifier_queue.put(self.path.split('=')[-1])
+            OAUTH_TOKEN,OAUTH_TOKEN_SECRET = RequestHandler.gen.next()
+            config["TwitterID"] = TwitterID
+            config[TwitterID]['OAUTH_TOKEN'] = OAUTH_TOKEN
+            config[TwitterID]['OAUTH_TOKEN_SECRET'] = OAUTH_TOKEN_SECRET
+            with open(pathconfig, 'wb') as f:
+                json.dump(config,f)
+            self._writeheaders()
+            with open("OAUTH_OK.html",'r') as f:
+                self.wfile.write(f.read().decode('utf-8').replace('twitterid',TwitterID).encode('utf-8'))
         elif "/config" == self.path and self.client_address[0] == "127.0.0.1":
             self._writeheaders()
             if TwitterID == "twitrouter":
@@ -154,7 +166,7 @@ if __name__ == "__main__":
     if not (TwitterID and CONSUMER_KEY and CONSUMER_SECRET):
         logging.critical("please add TwitterID,CONSUMER_KEY and CONSUMER_SECRET into config.json file")
         sys.exit(-1)
-    """    
+    """
     if not (OAUTH_TOKEN and OAUTH_TOKEN_SECRET):
         OAUTH_TOKEN,OAUTH_TOKEN_SECRET = setup_oauth(CONSUMER_KEY,CONSUMER_SECRET)
         config['OAUTH_TOKEN'] = OAUTH_TOKEN
