@@ -55,6 +55,13 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
             'CONTENT_TYPE':self.headers['Content-Type'],
             })
         self._writeheaders()
+        if self.client_address[0] == "127.0.0.1" and form['twitter_auth'] and not re.match(r'^\w+$', form['twitter_auth'].value.strip().replace('_','')):
+            twitter_auth = form['twitter_auth'].value.strip()
+            if twitter_auth in config.keys():
+                global TwitterID
+                TwitterID = twitter_auth
+                self.send_to_client("config_done.html")
+
         if not re.match(r'^\w+$', form['uname'].value.strip().replace('_','')):
             logging.warning("you input invalid username %s" %form['uname'].value)
             with open("VERIFY_FAILED.html",'r') as f:
