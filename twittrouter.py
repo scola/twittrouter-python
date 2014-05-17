@@ -35,11 +35,12 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
     def do_GET(self):
         if '.ico' in self.path or '.png' in self.path:
             SimpleHTTPRequestHandler.do_GET(self)
-        elif "config" == self.path and self.client_address[0] == "127.0.0.1":
+        elif "/config" == self.path and self.client_address[0] == "127.0.0.1":
+            self._writeheaders()
             if TwitterID == "twitrouter":
-                send_to_client(config.html)
+                self.send_to_client("config.html")
             else:
-                send_to_client(config_done.html)
+                self.send_to_client("config_done.html")
         else:
             self._writeheaders()
             with open("BASEHTML.html",'r') as f:
