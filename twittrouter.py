@@ -20,6 +20,10 @@ import re
 import logging
 
 class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
+    def send_to_client(self,filename):
+        with open(filename,'r') as f:
+            self.wfile.write(f.read().decode('utf-8').replace('twitterid',TwitterID).encode('utf-8'))
+
     def _writeheaders(self):
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
@@ -31,6 +35,11 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
     def do_GET(self):
         if '.ico' in self.path or '.png' in self.path:
             SimpleHTTPRequestHandler.do_GET(self)
+        elif "config" == self.path and self.client_address[0] == "127.0.0.1":
+            if TwitterID == "twitrouter":
+                send_to_client(config.html)
+            else:
+                send_to_client(config_done.html)
         else:
             self._writeheaders()
             with open("BASEHTML.html",'r') as f:
@@ -76,14 +85,14 @@ def createThread(target,args):
     return t
 
 def getarplist():
-    time.sleep(5)	
+    time.sleep(5)
     while True:
         client = os.popen('arp -n').read().strip().split('\n')
         ip_mac = lambda s: re.findall(r'\d+\.\d+\.\d+\.\d+|\w+:\w+:\w+:\w+:\w+:\w+',s)
         ip_mac_list = map(ip_mac,client)
         logging.info('scan the arp list')
         for ipmac in ip_mac_list:
-            if len(ipmac)==2 and (ipmac[1] in whitelist or ipmac[0] in authlist or ipmac[0] in blocklist):    
+            if len(ipmac)==2 and (ipmac[1] in whitelist or ipmac[0] in authlist or ipmac[0] in blocklist):
                 continue
             elif len(ipmac)==2:
                 logging.info("the new client should be blocked.ip == %s,mac == %s" %(ipmac[0],ipmac[1]))
@@ -97,26 +106,30 @@ if __name__ == "__main__":
         datefmt='%Y-%m-%d %H:%M:%S', filemode='a+')
 
     os.chdir(os.path.dirname(__file__) or '.')
-
-    with open('config.json', 'rb') as f:
-        config = json.load(f)
+    pathhome = os.path.join(os.path.dirname(__file__), os.pardir)
+    pathconfig = os.path.join(pathhome,"twittrouter.json")
+    if os.path.isfile(pathconfig):
+        with open('twittrouter.json', 'rb') as f:
+            config = json.load(f)
+    else:
+        with open('config.json', 'rb') as f:
+            config = json.load(f)
     whitelist = config['whitelist'].split('|')
-    blocklist = []
-    authlist = []
     TwitterID = config['TwitterID']
     CONSUMER_KEY = config['CONSUMER_KEY']
     CONSUMER_SECRET = config['CONSUMER_SECRET']
-    OAUTH_TOKEN = config['OAUTH_TOKEN']
-    OAUTH_TOKEN_SECRET = config['OAUTH_TOKEN_SECRET']
+    OAUTH_TOKEN = config[TwitterID]["OAUTH_TOKEN"]
+    OAUTH_TOKEN_SECRET = config[TwitterID]['OAUTH_TOKEN_SECRET']
 
-    if len(sys.argv) > 1:
-        TwitterID = sys.argv[1]
+    blocklist = []
+    authlist = []
+
     if not (TwitterID and CONSUMER_KEY and CONSUMER_SECRET):
-        logging.critical("please add TwitterID,CONSUMER_KEY and CONSUMER_SECRET into config.json file") 
+        logging.critical("please add TwitterID,CONSUMER_KEY and CONSUMER_SECRET into config.json file")
         sys.exit(-1)
     if not (OAUTH_TOKEN and OAUTH_TOKEN_SECRET):
         OAUTH_TOKEN,OAUTH_TOKEN_SECRET = setup_oauth(CONSUMER_KEY,CONSUMER_SECRET)
-        config['OAUTH_TOKEN'] = OAUTH_TOKEN 
+        config['OAUTH_TOKEN'] = OAUTH_TOKEN
         config['OAUTH_TOKEN_SECRET'] = OAUTH_TOKEN_SECRET
         with open('config.json', 'wb') as f:
             json.dump(config,f)
