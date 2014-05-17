@@ -15,7 +15,7 @@ ACCESS_TOKEN_URL = "https://api.twitter.com/oauth/access_token"
 #OAUTH_TOKEN_SECRET = ""
 
 
-def setup_oauth(CONSUMER_KEY,CONSUMER_SECRET):
+def setup_oauth(CONSUMER_KEY,CONSUMER_SECRET,verifier_queue):
     """Authorize your app via identifier."""
     # Request token
     oauth = OAuth1(CONSUMER_KEY, client_secret=CONSUMER_SECRET)
@@ -31,8 +31,7 @@ def setup_oauth(CONSUMER_KEY,CONSUMER_SECRET):
     
     #verifier = raw_input('Please input the verifier: ')
     yield authorize_url
-    global verifier_queue
-    verifier_queue.get()
+    verifier = verifier_queue.get()
     oauth = OAuth1(CONSUMER_KEY,
                    client_secret=CONSUMER_SECRET,
                    resource_owner_key=resource_owner_key,

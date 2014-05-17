@@ -22,6 +22,7 @@ import Queue
 
 class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
     gen = None
+    twitter_id = None
     def send_to_client(self,filename):
         with open(filename,'r') as f:
             self.wfile.write(f.read().decode('utf-8').replace('twitterid',TwitterID).encode('utf-8'))
@@ -45,13 +46,17 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
             logging.info("get oauth_verifier=%s" %self.path.split('=')[-1])
             verifier_queue.put(self.path.split('=')[-1])
             OAUTH_TOKEN,OAUTH_TOKEN_SECRET = RequestHandler.gen.next()
+            global TwitterID
+            TwitterID = RequestHandler.twitter_id
             config["TwitterID"] = TwitterID
-            config[TwitterID]['OAUTH_TOKEN'] = OAUTH_TOKEN
-            config[TwitterID]['OAUTH_TOKEN_SECRET'] = OAUTH_TOKEN_SECRET
+            new_auth = []
+            new_auth["OAUTH_TOKEN"] = OAUTH_TOKEN
+            new_auth["OAUTH_TOKEN_SECRET"] = OAUTH_TOKEN_SECRET
+            config[TwitterID] = new_auth
             with open(pathconfig, 'wb') as f:
                 json.dump(config,f)
             self._writeheaders()
-            with open("OAUTH_OK.html",'r') as f:
+            with open("config_done.html",'r') as f:
                 self.wfile.write(f.read().decode('utf-8').replace('twitterid',TwitterID).encode('utf-8'))
         elif "/config" == self.path and self.client_address[0] == "127.0.0.1":
             self._writeheaders()
@@ -75,17 +80,21 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
         if self.client_address[0] == "127.0.0.1" and 'twitter_auth' in form.keys() and re.match(r'^\w+$', form['twitter_auth'].value.strip().replace('_','')):
             logging.info("auth input %s" %form['twitter_auth'].value)
             twitter_auth = form['twitter_auth'].value.strip()
-            global TwitterID
-            TwitterID = twitter_auth
             if twitter_auth in config.keys():
+                global TwitterID
+                TwitterID = twitter_auth
+                OAUTH_TOKEN = config[twitter_auth]["OAUTH_TOKEN"]
+                OAUTH_TOKEN_SECRET = config[twitter_auth]["OAUTH_TOKEN_SECRET"]
+
                 self._writeheaders()
                 self.send_to_client("config_done.html")
                 #form['twitter_auth'] = None
                 return
             else:
                 #global config
-                RequestHandler.gen = setup_oauth(CONSUMER_KEY,CONSUMER_SECRET)
+                RequestHandler.gen = setup_oauth(CONSUMER_KEY,CONSUMER_SECRET,verifier_queue)
                 self._write_redirect_headers(RequestHandler.gen.next())
+                RequestHandler.twitter_id = twitter_auth
                 return
                 #config[TwitterID]['OAUTH_TOKEN'] = OAUTH_TOKEN
                 #config[TwitterID]['OAUTH_TOKEN_SECRET'] = OAUTH_TOKEN_SECRET
