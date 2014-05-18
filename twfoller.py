@@ -32,6 +32,7 @@ def setup_oauth(CONSUMER_KEY,CONSUMER_SECRET,verifier_queue):
     #verifier = raw_input('Please input the verifier: ')
     yield authorize_url
     verifier = verifier_queue.get()
+    print "get verifier = %s" %verifier
     oauth = OAuth1(CONSUMER_KEY,
                    client_secret=CONSUMER_SECRET,
                    resource_owner_key=resource_owner_key,
@@ -43,6 +44,7 @@ def setup_oauth(CONSUMER_KEY,CONSUMER_SECRET,verifier_queue):
     credentials = parse_qs(r.content)
     token = credentials.get('oauth_token')[0]
     secret = credentials.get('oauth_token_secret')[0]
+    print "get token=%s secret=%s" %(token,secret)
 
     yield token, secret
 
