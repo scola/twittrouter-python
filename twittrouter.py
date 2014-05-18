@@ -104,6 +104,7 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
             #sys.exit(0)
             self._writeheaders()
             self.wfile.write("clean&killed")
+            time.sleep(1)
             os.kill(os.getpid(),signal.SIGTERM)
 
         elif "&oauth_verifier=" in self.path:
