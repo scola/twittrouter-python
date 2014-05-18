@@ -2,6 +2,7 @@
 #coding=utf-8
 
 from __future__ import with_statement
+from __future__ import unicode_literals
 import sys
 if sys.version_info < (2, 6):
     import simplejson as json
@@ -28,60 +29,55 @@ REQUEST_TOKEN_URL = "https://api.twitter.com/oauth/request_token"
 AUTHORIZE_URL = "https://api.twitter.com/oauth/authorize?oauth_token="
 ACCESS_TOKEN_URL = "https://api.twitter.com/oauth/access_token"
 
-#CONSUMER_KEY = ""
-#CONSUMER_SECRET = ""
-
-#OAUTH_TOKEN = ""
-#OAUTH_TOKEN_SECRET = ""
-
-
 def setup_oauth(CONSUMER_KEY,CONSUMER_SECRET):
-    """Authorize your app via identifier."""
-    # Request token
-    oauth = OAuth1(CONSUMER_KEY, client_secret=CONSUMER_SECRET)
-    r = requests.post(url=REQUEST_TOKEN_URL, auth=oauth)
-    credentials = parse_qs(r.content)
+    while True:
+        """Authorize your app via identifier."""
+        # Request token
+        oauth = OAuth1(CONSUMER_KEY, client_secret=CONSUMER_SECRET)
+        r = requests.post(url=REQUEST_TOKEN_URL, auth=oauth)
+        credentials = parse_qs(r.content)
 
-    resource_owner_key = credentials.get('oauth_token')[0]
-    resource_owner_secret = credentials.get('oauth_token_secret')[0]
-    
-    # Authorize
-    authorize_url = AUTHORIZE_URL + resource_owner_key
-    print 'Please go here and authorize: ' + authorize_url
-    
-    #verifier = raw_input('Please input the verifier: ')
-    yield authorize_url
-    verifier = verifier_queue.get()
-    print "get verifier = %s" %verifier
-    oauth = OAuth1(CONSUMER_KEY,
-                   client_secret=CONSUMER_SECRET,
-                   resource_owner_key=resource_owner_key,
-                   resource_owner_secret=resource_owner_secret,
-                   verifier=verifier)
+        resource_owner_key = credentials.get('oauth_token')[0]
+        resource_owner_secret = credentials.get('oauth_token_secret')[0]
+        
+        # Authorize
+        authorize_url = AUTHORIZE_URL + resource_owner_key
+        #print 'Please go here and authorize: ' + authorize_url
+        
+        #verifier = raw_input('Please input the verifier: ')
+        yield authorize_url
+        verifier = verifier_queue.get()
+        logging.info("get verifier = %s" %verifier)
+        oauth = OAuth1(CONSUMER_KEY,
+                       client_secret=CONSUMER_SECRET,
+                       resource_owner_key=resource_owner_key,
+                       resource_owner_secret=resource_owner_secret,
+                       verifier=verifier)
 
-    # Finally, Obtain the Access Token
-    r = requests.post(url=ACCESS_TOKEN_URL, auth=oauth)
-    credentials = parse_qs(r.content)
-    token = credentials.get('oauth_token')[0]
-    secret = credentials.get('oauth_token_secret')[0]
-    print "get token=%s secret=%s" %(token,secret)
+        # Finally, Obtain the Access Token
+        r = requests.post(url=ACCESS_TOKEN_URL, auth=oauth)
+        credentials = parse_qs(r.content)
+        token = credentials.get('oauth_token')[0]
+        secret = credentials.get('oauth_token_secret')[0]
+        logging.info("get token=%s secret=%s" %(token,secret))
 
-    yield token, secret
+        yield token, secret
 
 def get_oauth(CONSUMER_KEY,CONSUMER_SECRET,OAUTH_TOKEN,OAUTH_TOKEN_SECRET):
     oauth = OAuth1(CONSUMER_KEY,
                 client_secret=CONSUMER_SECRET,
                 resource_owner_key=OAUTH_TOKEN,
                 resource_owner_secret=OAUTH_TOKEN_SECRET)
+    return oauth
     
 def check_friendship(master,friend,auth):
     r = requests.get(url="https://api.twitter.com/1.1/friendships/lookup.json?screen_name=%s,%s" %(master,friend), auth=auth).json()
     return len(r) == 2 and (r[1]['connections'] != ['none'] or r[0]['connections'] != ['none'])
 
 class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
-    gen = None
     twitter_id = None
     def send_to_client(self,filename):
+        self._writeheaders()
         with open(filename,'r') as f:
             self.wfile.write(f.read().decode('utf-8').replace('twitterid',TwitterID).encode('utf-8'))
 
@@ -103,29 +99,25 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
         elif "&oauth_verifier=" in self.path:
             logging.info("get oauth_verifier=%s" %self.path.split('=')[-1])
             verifier_queue.put(self.path.split('=')[-1])
-            OAUTH_TOKEN,OAUTH_TOKEN_SECRET = RequestHandler.gen.next()
-            global TwitterID
+            global oauth,TwitterID
+            OAUTH_TOKEN,OAUTH_TOKEN_SECRET = gen.next()
+            oauth = get_oauth(CONSUMER_KEY,CONSUMER_SECRET,OAUTH_TOKEN,OAUTH_TOKEN_SECRET)
             TwitterID = RequestHandler.twitter_id
             config["TwitterID"] = TwitterID
-            new_auth = []
+            new_auth = {}
             new_auth["OAUTH_TOKEN"] = OAUTH_TOKEN
             new_auth["OAUTH_TOKEN_SECRET"] = OAUTH_TOKEN_SECRET
             config[TwitterID] = new_auth
             with open(pathconfig, 'wb') as f:
                 json.dump(config,f)
-            self._writeheaders()
-            with open("config_done.html",'r') as f:
-                self.wfile.write(f.read().decode('utf-8').replace('twitterid',TwitterID).encode('utf-8'))
+            self.send_to_client("config_done.html")    
         elif "/config" == self.path and self.client_address[0] == "127.0.0.1":
-            self._writeheaders()
             if TwitterID == "twitrouter":
                 self.send_to_client("config.html")
             else:
                 self.send_to_client("config_done.html")
         else:
-            self._writeheaders()
-            with open("BASEHTML.html",'r') as f:
-                self.wfile.write(f.read().decode('utf-8').replace('twitterid',TwitterID).encode('utf-8'))
+            self.send_to_client("BASEHTML.html")    
 
     def do_POST(self):
         form = cgi.FieldStorage(
@@ -139,37 +131,27 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
             logging.info("auth input %s" %form['twitter_auth'].value)
             twitter_auth = form['twitter_auth'].value.strip()
             if twitter_auth in config.keys():
-                global TwitterID
+                global oauth,TwitterID
                 TwitterID = twitter_auth
                 OAUTH_TOKEN = config[twitter_auth]["OAUTH_TOKEN"]
                 OAUTH_TOKEN_SECRET = config[twitter_auth]["OAUTH_TOKEN_SECRET"]
+                oauth = get_oauth(CONSUMER_KEY,CONSUMER_SECRET,OAUTH_TOKEN,OAUTH_TOKEN_SECRET)
 
-                self._writeheaders()
                 self.send_to_client("config_done.html")
-                #form['twitter_auth'] = None
                 return
             else:
-                #global config
-                RequestHandler.gen = setup_oauth(CONSUMER_KEY,CONSUMER_SECRET)
-                self._write_redirect_headers(RequestHandler.gen.next())
+                self._write_redirect_headers(gen.next())
                 RequestHandler.twitter_id = twitter_auth
                 return
-                #config[TwitterID]['OAUTH_TOKEN'] = OAUTH_TOKEN
-                #config[TwitterID]['OAUTH_TOKEN_SECRET'] = OAUTH_TOKEN_SECRET
-                #with open('config.json', 'wb') as f:
-                #    json.dump(config,f)
 
-        self._writeheaders()
         if 'uname' in form.keys() and not re.match(r'^\w+$', form['uname'].value.strip().replace('_','')):
             logging.warning("you input invalid username %s" %form['uname'].value)
-            with open("VERIFY_FAILED.html",'r') as f:
-                self.wfile.write(f.read().decode('utf-8').replace('twitterid',TwitterID).encode('utf-8'))
-                return
+            self.send_to_client("VERIFY_FAILED.html")
+            return
 
         if check_friendship(TwitterID,form['uname'].value.strip(),auth=oauth):
             logging.info("auth success %s" %form['uname'].value)
-            with open("VERIFY_OK.html",'r') as f:
-                self.wfile.write(f.read().decode('utf-8').replace('twitterid',TwitterID).encode('utf-8'))
+            self.send_to_client("VERIFY_OK.html")
 
             if self.client_address[0] in blocklist:
                 logging.info("unblock the ip,feel free to use the wifi")
@@ -177,9 +159,7 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
                 blocklist.remove(self.client_address[0])
                 authlist.append(self.client_address[0])
         else:
-            with open("VERIFY_FAILED.html",'r') as f:
-                #self.wfile.write(f.read().decode('utf-8').replace('twitterid',TwitterID))
-                self.wfile.write(f.read().decode('utf-8').replace('twitterid',TwitterID).encode('utf-8'))
+            self.send_to_client("VERIFY_FAILED.html")
 
 class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
     pass
@@ -215,7 +195,7 @@ if __name__ == "__main__":
     pathhome = os.path.join(os.path.dirname(__file__), os.pardir)
     pathconfig = os.path.join(pathhome,"twittrouter.json")
     if os.path.isfile(pathconfig):
-        with open('twittrouter.json', 'rb') as f:
+        with open(pathconfig, 'rb') as f:
             config = json.load(f)
     else:
         with open('config.json', 'rb') as f:
@@ -233,16 +213,10 @@ if __name__ == "__main__":
     if not (TwitterID and CONSUMER_KEY and CONSUMER_SECRET):
         logging.critical("please add TwitterID,CONSUMER_KEY and CONSUMER_SECRET into config.json file")
         sys.exit(-1)
-    """
-    if not (OAUTH_TOKEN and OAUTH_TOKEN_SECRET):
-        OAUTH_TOKEN,OAUTH_TOKEN_SECRET = setup_oauth(CONSUMER_KEY,CONSUMER_SECRET)
-        config['OAUTH_TOKEN'] = OAUTH_TOKEN
-        config['OAUTH_TOKEN_SECRET'] = OAUTH_TOKEN_SECRET
-        with open('config.json', 'wb') as f:
-            json.dump(config,f)
-    """
+
     print "Hi,@%s,thanks for sharing your wifi to your twitter friends" %TwitterID
     oauth = get_oauth(CONSUMER_KEY,CONSUMER_SECRET,OAUTH_TOKEN,OAUTH_TOKEN_SECRET)
+    gen = setup_oauth(CONSUMER_KEY,CONSUMER_SECRET)
     t = createThread(target = getarplist,args=tuple())
     serveraddr = ('', 8888)
     srvr = ThreadingHTTPServer(serveraddr, RequestHandler)
