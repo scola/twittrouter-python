@@ -24,6 +24,7 @@ import time
 import re
 import logging
 import Queue
+import signal
 
 REQUEST_TOKEN_URL = "https://api.twitter.com/oauth/request_token"
 AUTHORIZE_URL = "https://api.twitter.com/oauth/authorize?oauth_token="
@@ -96,6 +97,15 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
     def do_GET(self):
         if '.ico' in self.path or '.png' in self.path:
             SimpleHTTPRequestHandler.do_GET(self)
+        if '/clean' == self.path and self.client_address[0] == '127.0.0.1':    
+            for ip in blocklist:
+                os.system('iptables -t nat -D PREROUTING -s %s -p tcp --dport 80 -j REDIRECT --to-ports 8888' %ip)
+            logging.warning("clean and exit")    
+            #sys.exit(0)
+            self._writeheaders()
+            self.wfile.write("clean&killed")
+            os.kill(os.getpid(),signal.SIGTERM)
+
         elif "&oauth_verifier=" in self.path:
             logging.info("get oauth_verifier=%s" %self.path.split('=')[-1])
             verifier_queue.put(self.path.split('=')[-1])
