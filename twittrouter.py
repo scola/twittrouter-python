@@ -40,14 +40,18 @@ def setup_oauth(CONSUMER_KEY,CONSUMER_SECRET):
 
         resource_owner_key = credentials.get('oauth_token')[0]
         resource_owner_secret = credentials.get('oauth_token_secret')[0]
-        
+
         # Authorize
         authorize_url = AUTHORIZE_URL + resource_owner_key
         #print 'Please go here and authorize: ' + authorize_url
-        
+
         #verifier = raw_input('Please input the verifier: ')
         yield authorize_url
-        verifier = verifier_queue.get()
+        try:
+            verifier = verifier_queue.get(timeout=2)
+        except Empty:
+            continue
+
         logging.info("get verifier = %s" %verifier)
         oauth = OAuth1(CONSUMER_KEY,
                        client_secret=CONSUMER_SECRET,
@@ -70,7 +74,7 @@ def get_oauth(CONSUMER_KEY,CONSUMER_SECRET,OAUTH_TOKEN,OAUTH_TOKEN_SECRET):
                 resource_owner_key=OAUTH_TOKEN,
                 resource_owner_secret=OAUTH_TOKEN_SECRET)
     return oauth
-    
+
 def check_friendship(master,friend,auth):
     r = requests.get(url="https://api.twitter.com/1.1/friendships/lookup.json?screen_name=%s,%s" %(master,friend), auth=auth).json()
     return len(r) == 2 and (r[1]['connections'] != ['none'] or r[0]['connections'] != ['none'])
@@ -97,15 +101,10 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
     def do_GET(self):
         if '.ico' in self.path or '.png' in self.path:
             SimpleHTTPRequestHandler.do_GET(self)
-        if '/clean' == self.path and self.client_address[0] == '127.0.0.1':    
-            for ip in blocklist:
-                os.system('iptables -t nat -D PREROUTING -s %s -p tcp --dport 80 -j REDIRECT --to-ports 8888' %ip)
-            logging.warning("clean and exit")    
-            #sys.exit(0)
+        if '/echo' == self.path and self.client_address[0] == '127.0.0.1':
+            logging.info("echo to test the server")
             self._writeheaders()
-            self.wfile.write("clean&killed")
-            time.sleep(1)
-            os.kill(os.getpid(),signal.SIGTERM)
+            self.wfile.write("helloworld")
 
         elif "&oauth_verifier=" in self.path:
             logging.info("get oauth_verifier=%s" %self.path.split('=')[-1])
@@ -121,14 +120,14 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
             config[TwitterID] = new_auth
             with open(pathconfig, 'wb') as f:
                 json.dump(config,f)
-            self.send_to_client("config_done.html")    
+            self.send_to_client("config_done.html")
         elif "/config" == self.path and self.client_address[0] == "127.0.0.1":
             if TwitterID == "twitrouter":
                 self.send_to_client("config.html")
             else:
                 self.send_to_client("config_done.html")
         else:
-            self.send_to_client("BASEHTML.html")    
+            self.send_to_client("BASEHTML.html")
 
     def do_POST(self):
         form = cgi.FieldStorage(
@@ -173,7 +172,17 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
             self.send_to_client("VERIFY_FAILED.html")
 
 class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
-    pass
+    allow_reuse_address = True
+
+def clear_iptables():
+    logging.info("clearing iptables")
+    iptables_list = os.popen('iptables -t nat -L PREROUTING').read().strip().split('\n')
+    ip_port = lambda s: re.findall(r'\d+\.\d+\.\d+\.\d+|8888',s)
+    ip_port_list = map(ip_port,iptables_list)
+    for ip_port in ip_port_list:
+        if len(ip_port) == 2:
+            print ip_port[0]
+            os.system('iptables -t nat -D PREROUTING -s %s -p tcp --dport 80 -j REDIRECT --to-ports 8888' %ip_port[0])
 
 def createThread(target,args):
     t = threading.Thread(target=target,args=args)
@@ -183,8 +192,11 @@ def createThread(target,args):
 
 def getarplist():
     time.sleep(5)
-    while True:
-        client = os.popen('arp -n').read().strip().split('\n')
+    clear_iptables()
+    while event.isSet():
+        #client = os.popen('arp -n').read().strip().split('\n')
+        with open('/proc/net/arp', 'r') as f:
+            client = f.read().strip().split('\n')
         ip_mac = lambda s: re.findall(r'\d+\.\d+\.\d+\.\d+|\w+:\w+:\w+:\w+:\w+:\w+',s)
         ip_mac_list = map(ip_mac,client)
         logging.info('scan the arp list')
@@ -197,6 +209,14 @@ def getarplist():
                 os.system('iptables -t nat -I PREROUTING -s %s -p tcp --dport 80 -j REDIRECT --to-ports 8888' %ipmac[0])
 
         time.sleep(10)
+
+def on_exit(no, info):
+    logging.warning("on exit")
+    event.clear()
+    for ip in blocklist:
+        os.system('iptables -t nat -D PREROUTING -s %s -p tcp --dport 80 -j REDIRECT --to-ports 8888' %ip)
+    clear_iptables()
+    os.kill(os.getpid(),signal.SIGINT)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)-8s %(message)s',
@@ -221,6 +241,9 @@ if __name__ == "__main__":
     blocklist = []
     authlist = []
     verifier_queue = Queue.Queue(1)
+    event = threading.Event()
+    event.set()
+
     if not (TwitterID and CONSUMER_KEY and CONSUMER_SECRET):
         logging.critical("please add TwitterID,CONSUMER_KEY and CONSUMER_SECRET into config.json file")
         sys.exit(-1)
@@ -228,6 +251,7 @@ if __name__ == "__main__":
     print "Hi,@%s,thanks for sharing your wifi to your twitter friends" %TwitterID
     oauth = get_oauth(CONSUMER_KEY,CONSUMER_SECRET,OAUTH_TOKEN,OAUTH_TOKEN_SECRET)
     gen = setup_oauth(CONSUMER_KEY,CONSUMER_SECRET)
+    signal.signal(signal.SIGTERM, on_exit)
     t = createThread(target = getarplist,args=tuple())
     serveraddr = ('', 8888)
     srvr = ThreadingHTTPServer(serveraddr, RequestHandler)
