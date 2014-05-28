@@ -9,6 +9,13 @@ if sys.version_info < (2, 6):
 else:
     import json
 
+try:
+    import gevent, gevent.monkey
+    gevent.monkey.patch_all(dns=gevent.version_info[0]>=1)
+except ImportError:
+    gevent = None
+    print >>sys.stderr, 'warning: gevent not found, using threading instead'    
+    
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 from SocketServer import ThreadingMixIn
