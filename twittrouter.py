@@ -92,6 +92,7 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
         self._writeheaders()
         with open(filename,'r') as f:
             self.wfile.write(f.read().decode('utf-8').replace('twitterid',TwitterID).encode('utf-8'))
+            self.wfile.close()
 
     def _writeheaders(self):
         self.send_response(200)
@@ -112,6 +113,7 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
             logging.info("echo to test the server")
             self._writeheaders()
             self.wfile.write("helloworld")
+            self.wfile.close()
 
         elif "&oauth_verifier=" in self.path:
             logging.info("get oauth_verifier=%s" %self.path.split('=')[-1])
@@ -142,9 +144,9 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
             headers=self.headers,
             keep_blank_values=True,
             environ={'REQUEST_METHOD':'POST',
-            'CONTENT_TYPE':self.headers['Content-Type'],
+            'CONTENT_TYPE':'text/html',
             })
-        if self.client_address[0] == "127.0.0.1" and 'twitter_auth' in form.keys() and re.match(r'^\w+$', form['twitter_auth'].value.strip().replace('_','')):
+        if self.client_address[0] == "127.0.0.1" and form and 'twitter_auth' in form and re.match(r'^\w+$', form['twitter_auth'].value.strip().replace('_','')):
             logging.info("auth input %s" %form['twitter_auth'].value)
             twitter_auth = form['twitter_auth'].value.strip()
             if twitter_auth in config.keys():
@@ -160,13 +162,16 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
                 self._write_redirect_headers(gen.next())
                 RequestHandler.twitter_id = twitter_auth
                 return
-
-        if 'uname' in form.keys() and not re.match(r'^\w+$', form['uname'].value.strip().replace('_','')):
+        if not form or 'uname' not in form:
+            return
+            
+        post_name = form['uname'].value.strip()
+        if not re.match(r'^\w+$', post_name.replace('_','')):
             logging.warning("you input invalid username %s" %form['uname'].value)
             self.send_to_client("VERIFY_FAILED.html")
             return
 
-        if check_friendship(TwitterID,form['uname'].value.strip(),auth=oauth):
+        if check_friendship(TwitterID, post_name, auth=oauth):
             logging.info("auth success %s" %form['uname'].value)
             self.send_to_client("VERIFY_OK.html")
 
