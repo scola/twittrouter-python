@@ -119,6 +119,9 @@ class RequestHandler(BaseHTTPRequestHandler,SimpleHTTPRequestHandler):
 
         elif "&oauth_verifier=" in self.path and self.client_address[0] == '127.0.0.1':
             if RequestHandler.oauth_verifier:
+                while RequestHandler.oauth_request_url:
+                    logging.info("waiting for oauth finish")
+                    time.sleep(1)
                 self.send_to_client("config_done.html")
                 return
             RequestHandler.oauth_verifier = self.path.split('=')[-1]
